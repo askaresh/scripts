@@ -1,0 +1,33 @@
+####################################################################
+# Get List of Wrtiable Volumes from AppVolumes Manager for free space less than 3 GB out of 30 GB
+# Author - Aresh Sarkari (@askaresh)
+# Version - V2.0
+####################################################################
+
+
+# Run at the start of each script to import the credentials
+$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_svc_vrops_av.xml"
+$RESTAPIUser = $Credentials.UserName
+$RESTAPIPassword = $Credentials.GetNetworkCredential().Password
+
+
+$body = @{
+    username = “$RESTAPIUser"
+    password = “$RESTAPIPassword”
+}
+
+Invoke-RestMethod -SessionVariable DaLogin -Method Post -Uri "https://avolmanager.askaresh.com/cv_api/sessions” -Body $body
+
+$output = Invoke-RestMethod -WebSession $DaLogin -Method Get -Uri "https://avolmanager.askaresh.com/cv_api/writables" -ContentType "application/json"
+
+$output.datastores.writable_volumes | Select-Object owner_name, owner_upn,total_mb, free_mb, percent_available, status | Where-Object {$_.free_mb -lt 3072}  | Export-Csv -NoTypeInformation -Append D:\Aresh\Writableslt3gb.$(Get-Date -Format "yyyyMMddHHmm").csv
+
+#send an email (provided the smtp server is reachable from where ever you are running this script)
+$emailfrom = 'writablevolumes@askaresh.com'
+$emailto = 'email1@askaresh.com', 'email2@askaresh.com'
+$emailsub = 'Wrtiable Volumes Size (free_mb) less than 3 GB out of 30 GB - 24 Hours'
+$emailbody = 'Attached CSV File from App Volumes Manager. The attachment included the API response for all the Writable Volumes less than 3 GB of free space'
+$emailattach = "D:\Aresh\Writableslt3gb.$(Get-Date -Format "yyyyMMddHHmm").csv"
+$emailsmtp = 'smtp.askaresh.com'
+
+Send-MailMessage -From $emailfrom -To $emailto -Subject $emailsub -Body $emailbody -Attachments $emailattach -Priority High -DeliveryNotificationOption OnFailure -SmtpServer $emailsmtp
