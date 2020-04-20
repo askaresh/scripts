@@ -6,7 +6,7 @@
 
 
 # Run at the start of each script to import the credentials
-$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_svc_vrops_av.xml"
+$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_avmgr.xml"
 $RESTAPIUser = $Credentials.UserName
 $RESTAPIPassword = $Credentials.GetNetworkCredential().Password
 
@@ -24,7 +24,7 @@ $output.datastores.writable_volumes | Select-Object owner_name, owner_upn,total_
 
 #send an email (provided the smtp server is reachable from where ever you are running this script)
 $emailfrom = 'writablevolumes@askaresh.com'
-$emailto = 'email1@askaresh.com', 'email2@askaresh.com'
+$emailto = 'email1@askaresh.com', 'email2@askaresh.com' #Enter your SMTP Details
 $emailsub = 'Wrtiable Volumes Size (free_mb) less than 3 GB out of 30 GB - 24 Hours'
 $emailbody = 'Attached CSV File from App Volumes Manager. The attachment included the API response for all the Writable Volumes less than 3 GB of free space'
 $emailattach = "D:\Aresh\Writableslt3gb.$(Get-Date -Format "yyyyMMddHHmm").csv"
