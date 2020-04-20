@@ -5,7 +5,7 @@
 ####################################################################
 
 # Run at the start of each script to import the credentials
-$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_svc_vrops_av.xml"
+$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_avmgr.xml"
 $RESTAPIUser = $Credentials.UserName
 $RESTAPIPassword = $Credentials.GetNetworkCredential().Password
 
