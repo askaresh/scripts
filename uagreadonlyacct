@@ -1,0 +1,49 @@
+####################################################################
+# Create ready-only account in the VMware Unified Access Gateway Appliance
+# for monitoring purposes using vROPS or API etc.
+# Author - Aresh Sarkari (@askaresh)
+# Version - V5.0
+####################################################################
+
+
+# Ignore UAG cert errors (self signed or 
+
+add-type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
+
+
+##API Call to make the intial connection to the UAG Appliance##
+
+$Uri = "https://10.0.0.1:9443/rest/v1/config/adminusers/logAdminUserAction/LOGIN"
+$Username = "admin"
+$Password = "adminpassword"
+
+$Headers = @{ Authorization = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $Username,$Password))) }
+
+Invoke-RestMethod -SessionVariable DaLogin -Uri $Uri -Headers $Headers
+
+
+###API Call to create the user account with read-only access under VMware Unified Access Gateway##
+
+$body = @{
+  name = "UAG_vRops"
+  password= "typeyourpassword"
+  enabled=$true
+  roles = @("ROLE_MONITORING")
+  noOfDaysRemainingForPwdExpiry=0
+} | ConvertTo-Json
+
+$output = Invoke-RestMethod -WebSession $DaLogin -Method Put -Uri "https://10.0.0.1:9443/rest/v1/config/adminusers" -Body $body -ContentType "application/json"
+
+Write-Output $output
