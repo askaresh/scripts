@@ -1,0 +1,41 @@
+####################################################################
+# Un-Install EUC Agents in the proper order for Golden Image
+# App Volumes Agent, Horizon Client(Optional), DEM, Horizon and VMware Tools
+# Auto Reboot the OS towards the end after un-installing all Agents.
+# Comment or Un-comment the Agent that does not apply to your environment
+# Author - Aresh Sarkari (Twitter - @askaresh)
+####################################################################
+
+#Un-installing VMware App Volumes Agent
+Write-Host "Un-installing the App Volumes Agent" -ForegroundColor Green
+Get-Package -Name 'App Volumes **' | Uninstall-Package
+
+sleep -Seconds 60
+
+#Un-installing VMware Horizon Client
+#Write-Host "Un-installing the VMware Horizon Client" -ForegroundColor Green
+#Get-Package -Name 'VMware Horizon Cli**' | Uninstall-Package
+
+#sleep -Seconds 60
+
+#Un-installing VMware Dynamic Environment Agent
+Write-Host "Un-installing the Dynamic Environment Agent" -ForegroundColor Green
+Get-Package -Name 'VMware Dynamic **' | Uninstall-Package
+
+sleep -Seconds 60
+
+#Un-installing VMware Horizon Agent
+Write-Host "Un-installing the VMware Horizon Agent" -ForegroundColor Green
+Get-Package -Name 'VMware Horizon Ag**' | Uninstall-Package
+
+sleep -Seconds 60
+
+#Un-installing VMware Tools Agent
+Write-Host "Un-installing the VMware Tools Agent" -ForegroundColor Green
+Get-Package -Name 'VMware Tools' | Uninstall-Package
+
+sleep -Seconds 60
+
+# Restart the computer
+Write-Host "Restarting the computer post the VMware EUC Agents Un-install" -ForegroundColor Green
+Restart-Computer -Force
