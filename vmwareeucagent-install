@@ -1,0 +1,99 @@
+#################################################################################################
+# Install EUC Agents in the proper order - Horizon Agent , DEM Agent and App Volumes Agent
+# Reboot the OS towards the end after install all Agents. Look for Exit Code 0 or 3010
+# If you notice exit code 1603 there is a installation issue. Refer to my MSI switches blogpost
+# Comment or Un-comment the Agent that does not apply to your environment
+# Author - Aresh Sarkari (Twitter - @askaresh)
+################################################################################################
+
+###################################################################
+#                    Declare Variables                            #
+###################################################################
+
+#Agent Names
+$HorizonAgentName = "VMware-Horizon-Agent-x86_64*"
+$DEMAgentName = "VMware Dynamic Environment Manager*"
+$AppVolumesAgentName = "App Volumes Agent*"
+$AppVolMGR = "avm001.domain.com" # Manager LB VIP
+
+# All the installer Location
+#Create a folder C:\Temp\Agents and place all the MSI\EXE in there
+$TempInstallPath = "C:\Temp\Agents" 
+
+#Log Files location
+# Go through all the logs post installation
+$HZlogFile = "C:\Temp\Agents\HZAgent.log"
+$DEMlogFile = "C:\Temp\Agents\DEMAgent.log"
+$ApplogFile = "C:\Temp\Agents\AppVolAgent.log"
+
+###################################################################
+#                    MSI Arguments Arrary for EUC Agents          #
+###################################################################
+# Modify any MSI switched related to the agent here.
+# Follow this blog post for swithces - https://askaresh.com/2021/06/28/comparision-vmware-horizon-agent-7-x-8-x-silent-install-switches-and-properties/
+
+# VMware Horizon Agent MSI Switches
+$HZMSIArguments = @(
+	"/qn"
+	"VDM_VC_MANAGED_AGENT=1"
+    "SUPPRESS_RUNONCE_CHECK=1"
+	"VDM_IP_Protocol_Usage=IPv4"
+	"ADDLOCAL=Core,ClientDriveRedirection,NGVC,USB,RTAV,PerfTracker,PrintRedir,HelpDesk,TSMMR,VmwVaudio,V4V"
+	"REBOOT=REallySuppress"
+	"/L*v"
+	$HZlogFile
+)
+
+# VMware Dynamic Enivornment Agent MSI Switches
+$DEMMSIArguments = @(
+    "/qn"
+    "ADDLOCAL=FlexEngine"
+    "REBOOT=REallysuppress"
+    "/L*v"
+    $DEMlogFile
+)
+
+# VMware App Volumes Agent MSI Switches
+$AppVolMSIArguments = @(
+    "/qn"
+    "MANAGER_ADDR=$AppVolMGR"
+    "MANAGER_PORT=443"
+    "REBOOT=REallysuppress"
+    "EnforceSSLCertificateValidation=0"
+    "/L*v"
+    $ApplogFile
+)
+
+###################################################################
+#                    Main                                        #
+###################################################################
+
+# Install VMware Horizon Agent
+Write-Host "Installing the VMware Horizon Agent" -ForegroundColor Green
+$HZAgentPath = (Get-ChildItem -Path $TempInstallPath | Where-Object {$_.name -like $HorizonAgentName}).Fullname
+
+# The switches "/s /v " is the Install Shield switches and rest of the aruguments are passed with MSI
+$HZAgentInstall = (Start-Process -Filepath $HZAgentPath -Wait -ArgumentList "/s /v ""$HZMSIArguments" -PassThru)
+$HZAgentInstall.ExitCode
+
+Start-Sleep 20
+
+# Install DEM Agent
+Write-Host "Installing the VMware DEM Agent" -ForegroundColor Green
+$DEMPath = (Get-ChildItem -Path $TempInstallPath | Where-Object {$_.name -like $DEMAgentName}).Fullname
+$DEMAgentInstall = (Start-Process -Filepath $DEMPath -ArgumentList $DEMMSIArguments -Wait -PassThru)
+$DEMAgentInstall.ExitCode
+
+Start-Sleep 20
+
+# Install App Volumes Agent
+Write-Host "Installing the VMware App Volumes Agent" -ForegroundColor Green
+$AppVolPath = (Get-ChildItem -Path $TempInstallPath | Where-Object {$_.name -like $AppVolumesAgentName}).Fullname
+$AppVolAgentInstall = (Start-Process -Filepath $AppVolPath -ArgumentList $AppVolMSIArguments -Wait -PassThru)
+$AppVolAgentInstall.ExitCode
+
+Start-Sleep 20
+
+# Restart the computer
+Write-Host "Restarting the computer post the VMware EUC Agents install" -ForegroundColor Green
+Restart-Computer -Force
