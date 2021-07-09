@@ -1,0 +1,59 @@
+##############################################################################################################################################
+# Replace the ADMIN and Internet Facing certificate on the UAG Appliance
+# Uncomment if you dont plan to do both the interfaces (Internet/ADMIN)
+# Get the certificate in one line following this documentation 
+# https://docs.vmware.com/en/Unified-Access-Gateway/3.10/com.vmware.uag-310-deploy-config.doc/GUID-870AF51F-AB37-4D6C-B9F5-4BFEB18F11E9.html
+# Author - Aresh Sarkari (Twitter - @askaresh)
+##############################################################################################################################################
+
+#UAGServer Name or IP
+$UAGServer = "10.1.1.1"
+
+#Ignore cert errors
+add-type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
+
+
+#API Call to make the intial connection to the UAG Appliance##
+$Uri = "https://$UAGServer`:9443/rest/v1/config/adminusers/logAdminUserAction/LOGIN"
+
+$Username = "admin"
+$Password = "enteryouradminpassword"
+
+$Headers = @{ Authorization = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $Username,$Password))) }
+
+Invoke-WebRequest -SessionVariable DaLogin -Uri $Uri -Headers $Headers
+
+#The PEM Certificate + Private Key in RSA Format
+#The certificate has to be in online using linux command - awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' cert-name.pem 
+$certificatersaContent = "-----BEGIN RSA PRIVATE KEY-----\nMIIEo... followed by a large block of text...\n-----END RSA PRIVATE KEY-----\n"
+$certificateContent = "-----BEGIN CERTIFICATE-----\nMIIEo... followed by a large block of text...\n-----END CERTIFICATE-----\n"
+
+#Body to replace the certificate
+$body = @{
+  privateKeyPem = $certificatersaContent
+  certChainPem = $certificateContent
+} 
+
+#Converting the Json and line breaks in strings 
+#https://communary.net/2018/03/30/quick-tip-convertto-json-and-line-breaks-in-strings/
+$Jsonbody = ($body | ConvertTo-Json).Replace('\\n','\n')
+
+#API to replace the Admin Certificate of the UAG Appliance
+#Please note that the Backtick ` is required in order to escape the colon
+$outputadmin = Invoke-WebRequest -WebSession $DaLogin -Method Put -Uri "https://$UAGServer`:9443/rest/v1/config/certs/ssl/ADMIN" -Body $Jsonbody -ContentType "application/json" -Verbose
+
+#API to replace the Internet facing Certificate of the UAG Appliance
+#Please note that the Backtick ` is required in order to escape the colon
+$outputenduser = Invoke-WebRequest -WebSession $DaLogin -Method Put -Uri "https://$UAGServer`:9443/rest/v1/config/certs/ssl/END_USER" -Body $Jsonbody -ContentType "application/json" -Verbose
