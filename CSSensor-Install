@@ -1,0 +1,56 @@
+#############################################################################################
+# Install Crowd Strike Sensor to the Golden Image on Windows 10 and Windows Server 2016/2019
+# Look for Exit Code 0 = Success
+# Comment or Un-comment the Agent that does not apply to your environment
+# Author - Aresh Sarkari - https://twitter.com/askaresh
+#############################################################################################
+
+###################################################################
+#                    Declare Variables                            #
+###################################################################
+
+#Agent Names
+$CSSensorName = "WindowsSen*"
+
+#The sensor installer Location
+$TempInstallPath = "C:\Temp\Sensor"
+
+#Log Files location
+$CSSensorlogFile = "C:\Temp\Sensor\CSSensor.log"
+
+###################################################################
+#                    EXE Arguments Arrary for CS Sensor           #
+###################################################################
+# Modify any Installer switches related to the sensor here.
+# Dell Article covering all silent switches 
+# https://www.dell.com/support/kbdoc/en-us/000126124/how-to-install-crowdstrike-falcon-sensor
+# Proxy switches if your endpoints dont have direct Internet Access
+# Log Files w.r.t to installation is generated in C:\Temp\*
+
+# Crowd Strike Sensor Arguments
+$CSArguments = @(
+    "/install"
+    "/quiet"
+    "/norestart"
+    "CID=YOUDIDGUIDWILLGOHERE-EG"
+    "ProvToken=YOURTOKENNUMBER"
+    "GROUPING_TAGS=TAG1,TAG_VDI"
+    "ProvWaitTime=3600000"
+    "APP_PROXYNAME=proxy.whateverproxy.com"
+    "APP_PROXYPORT=80"
+    "VDI=1"
+	"/log"
+    $CSSensorlogFile
+)
+
+###################################################################
+#                    Main                                        #
+###################################################################
+
+# Install Crowd Strike Sensor
+Write-Host "Installing the Crowd Strike Sensor" -ForegroundColor Green
+$CSSensorPath = (Get-ChildItem -Path $TempInstallPath | Where-Object {$_.name -like $CSSensorName}).Fullname
+$CSSensorInstall = (Start-Process -Filepath $CSSensorPath -Wait -ArgumentList "$CSArguments" -PassThru)
+$CSSensorInstall.ExitCode
+
+Start-Sleep 20
