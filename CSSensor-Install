@@ -9,7 +9,7 @@
 #                    Declare Variables                            #
 ###################################################################
 
-#Agent Names
+#Sensor Names
 $CSSensorName = "WindowsSen*"
 
 #The sensor installer Location
