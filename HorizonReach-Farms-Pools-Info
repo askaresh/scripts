@@ -1,0 +1,43 @@
+#Horizon Reach Server Name or IP Address
+$HZReachServer = "https://horizonreach.domain:9443"
+
+#Ignore the self signed cert errors
+add-type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
+
+
+#API Call to make the intial connection to the Horizon Reach Server##
+$HZReachLogonAPIcall = "$HZReachServer`/api/Logon"
+
+#The body payload that comprises of the login API request
+$body = @{
+    username = "administrator"
+    password = "enteryourpassword"
+} | ConvertTo-Json
+
+$HZReachlogin = Invoke-RestMethod -Method Post -uri $HZReachLogonAPIcall -Body $body -ContentType "application/json"
+
+#Header along with the JWT token is now saved for future API calls
+#You need to call this header in all subsequent calls as it has the token
+$Headers = @{ Authorization = "Bearer $($HZReachlogin.jwt)" }
+
+#API Call to fetch the consolidated (as many pods you have) Horizon Farm information##
+$HZReachFarms = Invoke-RestMethod -Method Get -uri "$HZReachServer/api/Farms" -Headers $Headers -ContentType "application/json" -UseBasicParsing | Format-Table -Property displayname, baseimage, snapshot, enabled, health, isProvisioningEnabled
+
+Write-Output $HZReachFarms
+
+#API Call to fetch the consolidated (as many pods you have) Horizon desktop pool information##
+$HZReachPools = Invoke-RestMethod -Method Get -uri "$HZReachServer/api/pools" -Headers $Headers -ContentType "application/json" -UseBasicParsing | Format-Table -Property displayname, baseimage, snapshot, enabled, healthDetail, isProvisioningEnabled
+
+Write-Output $HZReachPools
