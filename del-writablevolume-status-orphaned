@@ -1,0 +1,77 @@
+###########################################################################
+# Get List of Wrtiable Volumes from AppVolumes Manager for Status=Orphaned
+# Delete the Orphaned Wrtiable Volumes
+# You need username and password for the App Volumes Manager
+# Author - Aresh Sarkari (Twitter - @askaresh)
+# Version - V5.0
+###########################################################################
+
+#App Volumes Manager Name or IP Address
+$AVManager = "https://avm001.askaresh.local"
+
+# Run at the start of each script to import the credentials
+$RESTAPIUser = "askaresh\username"
+$RESTAPIPassword = "enteryourpassword"
+
+#Ignore cert errors
+add-type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
+
+#Login AV Manager Body
+$body = @{
+    username = “$RESTAPIUser"
+    password = “$RESTAPIPassword”
+}
+
+#Login API call to the AV Manager
+Invoke-RestMethod -SessionVariable DaLogin -Method Post -Uri "$AVManager/cv_api/sessions” -Body $body
+
+#Get the list of Writbale Volumes from the AV Manager
+$output = Invoke-RestMethod -WebSession $DaLogin -Method Get -Uri "$AVManager/cv_api/writables" -ContentType "application/json"
+
+#Selecting the WV with status Orphaned into a variable
+$WVouput = $output.datastores.writable_volumes | Select-Object id, owner_name, owner_upn, title, status | Where-Object {[string]$_.status -match "Orphaned"}
+
+#Output on the console (Validate carefully before proceeding ahead)
+$WVouput | Format-Table | Out-String | % {Write-Host $_}
+
+#Confirmation logic to proceed with the deletion
+$confirmation = Read-Host -Prompt "Are you Sure You Want To Proceed with the deletion:" 
+if ($confirmation -match "[yY]" ) {
+    # proceed
+
+# The WV Deletion API call only looks for IDs. We are filtering the ids only
+$WVOutputIDs = $WVouput.id
+
+#Looping to delete each Writable Volumes via its ID
+foreach ($WVOutputIDss in $WVOutputIDs) {
+
+# Writable Volumes deletion Parameters body
+$jsonbody = @{
+    bg = "0"
+    volumes = "$WVOutputIDss"
+} | ConvertTo-Json
+
+#API call to delete the Wrtiable Volumes
+#We are using Invoke-webrequest for getting the Content of the deletion (Success)
+$WVdeletecall = Invoke-WebRequest -WebSession $DaLogin -Method Post -Uri "$AVManager/cv_api/volumes/delete_writable" -Body $jsonbody -ContentType "application/json"
+
+}
+
+#Dig into the exception to get the Response details.
+Write-Host $WVdeletecall.StatusCode
+Write-Host $WVdeletecall.StatusDescription
+Write-Host $WVdeletecall.Content
+
+}
