@@ -1,0 +1,34 @@
+####################################################################
+# Get List of Wrtiable Volumes from the AppVolumes Manager
+# Author - Aresh Sarkari (Twitter - @askaresh)
+# Version - V2.0
+####################################################################
+
+# Run at the start of each script to import the credentials
+$Credentials = IMPORT-CLIXML "C:\Scripts\Secure-Creds\SCred_avmgr.xml"
+$RESTAPIUser = $Credentials.UserName
+$RESTAPIPassword = $Credentials.GetNetworkCredential().Password
+
+
+$body = @{
+    username = “$RESTAPIUser"
+    password = “$RESTAPIPassword”
+}
+
+Invoke-RestMethod -SessionVariable DaLogin -Method Post -Uri "https://avolmanager.askaresh.com/cv_api/sessions” -Body $body
+
+$output = Invoke-RestMethod -WebSession $DaLogin -Method Get -Uri "https://avolmanager.askaresh.com/cv_api/writables" -ContentType "application/json"
+
+$output.datastores.writable_volumes | Select-Object owner_name, owner_upn,total_mb, free_mb, percent_available, status | Export-Csv -NoTypeInformation -Append D:\Aresh\Writablesectotal.$(Get-Date -Format "yyyyMMddHHmm").csv
+
+#send an email (provided the smtp server is reachable from where ever you are running this script)
+$emailfrom = 'appstack@askaresh.com'
+$emailto = 'email1@askaresh.com', 'email2@askaresh.com' #Enter your SMTP Details
+$emailsub = 'Total user with Wrtiable Volumes from App Volumes Manager'
+$emailbody = 'Attached CSV File from App Volumes Manager. The attachment included the API response for all the Writable Volumes total users'
+$emailattach = "D:\Aresh\Writablesectotal.$(Get-Date -Format "yyyyMMddHHmm").csv"
+$emailsmtp = 'smtp.askaresh.com'
+
+Send-MailMessage -From $emailfrom -To $emailto -Subject $emailsub -Body $emailbody -Attachments $emailattach -Priority High -DeliveryNotificationOption OnFailure -SmtpServer $emailsmtp
+
+Remove-Item "D:\Aresh\Writablesectotal.$(Get-Date -Format "yyyyMMddHHmm").csv"
